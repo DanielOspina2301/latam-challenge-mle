@@ -17,6 +17,9 @@ scikit-learn = "^1.7.1"
 matplotlib = "^3.10.5"
 seaborn = "^0.13.2"
 xgboost = "^3.0.4"
+google-cloud-storage = "^3.3.0"
+google-cloud-bigquery = "^3.36.0"
+pydantic-settings = "^2.10.1"
 
 
 [build-system]
