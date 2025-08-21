@@ -1,4 +1,8 @@
+import pickle
 import uuid
+
+from fastapi.params import Depends
+from challenge.core.dependencies import get_model
 from challenge.core.settings import settings
 from challenge.infrastructure.bigquery import BigQueryClient
 from challenge.infrastructure.gcp_storage import GCSClient
@@ -7,27 +11,14 @@ from challenge.utils.utils import load_data_from_csv
 
 
 class TrainingService:
-    def __init__(self):
-        self.model = DelayModel(
-            top_features=[
-                "OPERA_Latin American Wings",
-                "MES_7",
-                "MES_10",
-                "OPERA_Grupo LATAM",
-                "MES_12",
-                "TIPOVUELO_I",
-                "MES_4",
-                "MES_11",
-                "OPERA_Sky Airline",
-                "OPERA_Copa Air"
-            ]
-        )
+    def __init__(self, model: DelayModel):
+        self.model = model
         self.gcs_client = GCSClient()
         self.bigquery_client = BigQueryClient()
 
 
     def train_model(self) -> str:
-        last_file = self.gcs_client.get_last_training_file()
+        last_file = self.gcs_client.get_training_data()
         if not last_file:
             raise FileNotFoundError("File not found in GCS")
         
@@ -45,3 +36,18 @@ class TrainingService:
         }, model_id=model_id)
 
         return gcs_uri, metrics
+    
+    def update_model(self, model_name: str = None):
+        if model_name:
+            trained_model = self.gcs_client.get_file(file_name=model_name, prefix="models/")
+
+            if trained_model:
+                self.model.load(model=trained_model)
+            else:
+                raise FileNotFoundError(f"Model {model_name} does not exist in the bucket.")
+            
+        last_model = self.gcs_client.get_trained_model()
+        if last_model:
+            self.model.load(model=last_model)
+        else:
+            raise FileNotFoundError("There are no models in the bucket.")
