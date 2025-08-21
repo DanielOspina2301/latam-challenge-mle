@@ -15,12 +15,22 @@ class DelayModel:
 
     def __init__(
         self,
-        top_features: List[str] = None,
         threshold_in_minutes: int = 15,
     ):
         self._model = None
         self.preprocessor = Preprocessor()
-        self.top_10_features = top_features
+        self.top_10_features = [
+            "OPERA_Latin American Wings",
+            "MES_7",
+            "MES_10",
+            "OPERA_Grupo LATAM",
+            "MES_12",
+            "TIPOVUELO_I",
+            "MES_4",
+            "MES_11",
+            "OPERA_Sky Airline",
+            "OPERA_Copa Air"
+        ]
         self.threshold_in_minutes = threshold_in_minutes
 
     def preprocess(
@@ -41,10 +51,11 @@ class DelayModel:
             pd.DataFrame: features.
         """
         try:
-            data["period_day"] = data["Fecha-I"].apply(self.preprocessor.get_period_day)
-            data["high_season"] = data["Fecha-I"].apply(self.preprocessor.is_high_season)
-            data["min_diff"] = data.apply(self.preprocessor.get_min_diff, axis=1)
-            data["delay"] = np.where(data["min_diff"] > self.threshold_in_minutes, 1, 0)
+            if "Fecha-I" in data and "Fecha-O" in data:
+                data["period_day"] = data["Fecha-I"].apply(self.preprocessor.get_period_day)
+                data["high_season"] = data["Fecha-I"].apply(self.preprocessor.is_high_season)
+                data["min_diff"] = data.apply(self.preprocessor.get_min_diff, axis=1)
+                data["delay"] = np.where(data["min_diff"] > self.threshold_in_minutes, 1, 0)
 
             features = pd.concat([
                 pd.get_dummies(data["OPERA"], prefix="OPERA"),
@@ -59,6 +70,7 @@ class DelayModel:
             target = data[target_column]
             return features[self.top_10_features], target
         
+        features = features.reindex(columns=self.top_10_features, fill_value=0)
         return features[self.top_10_features]
 
     def fit(
@@ -112,7 +124,6 @@ class DelayModel:
         with open(path, "wb") as f:
             pickle.dump(self._model, f)
 
-    def load(self, path: Union[str, Path]):
+    def load(self, model):
         """Load a model from disk."""
-        with open(path, "rb") as f:
-            self._model = pickle.load(f)
+        self._model = pickle.loads(model)

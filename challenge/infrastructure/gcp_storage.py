@@ -27,11 +27,40 @@ class GCSClient:
         return list(self.client.list_blobs(self.bucket, prefix=prefix))
     
 
-    def get_last_training_file(self, prefix: str = "training/"):
+    def get_last_file(self, prefix: str):
         files = self.list_files(prefix)
         if not files:
             return None
         
         files.sort(key=lambda blob: blob.time_created, reverse=True)
-        latest_blob = files[0]
-        return latest_blob.download_as_text()
+        
+        return files[0]
+    
+
+    def get_training_data(self, prefix: str = "training/"):
+        latest_blob = self.get_last_file(prefix=prefix)
+        if latest_blob:
+            return latest_blob.download_as_text()
+        return None
+    
+
+    def get_trained_model(self, prefix: str = "models/"):
+        latest_blob = self.get_last_file(prefix=prefix)
+        if latest_blob:
+            return latest_blob.download_as_string()
+        return None
+
+
+    def get_file(self, file_name: str, prefix: str):
+        try:
+            blobs = self.bucket.list_blobs(prefix=prefix)
+            if not blobs:
+                return None
+            
+            for blob in blobs:
+                if blob.name == f"{prefix}{file_name}":
+                    return blob.download_as_string()
+                
+            return None
+        except Exception as e:
+            raise RuntimeError(f"Get file from storage failed: {e}")
