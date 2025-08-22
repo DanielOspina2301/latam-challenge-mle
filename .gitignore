@@ -79,3 +79,9 @@ __MACOSX/
 .poetry/
 
 .env
+
+# Tests
+.coverage
+.coverage.*
+
+reports/

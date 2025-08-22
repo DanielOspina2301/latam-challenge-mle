@@ -42,10 +42,10 @@ async def post_predict(data: RequestTemplate, model: DelayModel = Depends(get_mo
         raise fastapi.HTTPException(status_code=500, detail=str(e))
     
 @app.get("/fit", status_code=200)
-async def get_fit(model: DelayModel = Depends(get_model)) -> dict:
+async def get_fit(cloud_data:bool, model: DelayModel = Depends(get_model)) -> dict:
     try:
         service = TrainingService(model)
-        trained_model_uri, metrics = service.train_model()
+        trained_model_uri, metrics = service.train_model(cloud_data)
         return {
             "message": "Model trained successfully",
             "model_path": trained_model_uri,
@@ -55,12 +55,12 @@ async def get_fit(model: DelayModel = Depends(get_model)) -> dict:
         raise fastapi.HTTPException(status_code=500, detail=f"Error during training: {str(e)}")
     
 @app.get("/update-model", status_code=200)
-async def force_update_model(model_id: str, model: DelayModel = Depends(get_model)) -> dict:
+async def force_update_model(model_id: str, cloud: bool, model: DelayModel = Depends(get_model)) -> dict:
     if model_id.endswith('.pkl'):
         raise fastapi.HTTPException(status_code=400, detail='Model id should not have extension')
     try:
         service = TrainingService(model)
-        service.update_model(model_name=f'{model_id}.pkl')
+        service.update_model(model_name=f'{model_id}.pkl', cloud=cloud)
         return {'updated_model': model_id}
     except Exception as e:
         raise fastapi.HTTPException(status_code=500, detail=f'An error occurred during updating model: {str(e)}')

@@ -8,14 +8,16 @@ from typing import Tuple, Union, List
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
+import xgboost
 
+from challenge.core.settings import settings
 from challenge.infrastructure.preprocessing import Preprocessor
 
 class DelayModel:
 
     def __init__(
         self,
-        threshold_in_minutes: int = 15,
+        threshold_in_minutes: int = settings.DELAY_THRESHOLD,
     ):
         self._model = None
         self.preprocessor = Preprocessor()
@@ -68,7 +70,7 @@ class DelayModel:
         
         if target_column:
             target = data[target_column]
-            return features[self.top_10_features], target
+            return features[self.top_10_features], target.to_frame()
         
         features = features.reindex(columns=self.top_10_features, fill_value=0)
         return features[self.top_10_features]
@@ -87,12 +89,8 @@ class DelayModel:
         """
         x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.33, random_state=42)
 
-        model = LogisticRegression(
-            class_weight={
-                1: len(y_train[y_train == 1]) / len(y_train),
-                0: len(y_train[y_train == 0]) / len(y_train)
-            }
-        )
+        scale = len(y_train[y_train.delay == 0]) / len(y_train[y_train.delay == 1])
+        model = xgboost.XGBClassifier(random_state=1, learning_rate=0.01, scale_pos_weight=scale)
         model.fit(x_train, y_train)
         y_pred = model.predict(x_test)
 
@@ -114,8 +112,11 @@ class DelayModel:
             (List[int]): predicted targets.
         """
         if self._model is None:
-            raise ValueError("Model is not trained or loaded")
-        return self._model.predict(features).tolist()
+            with open("./models/model.pkl", "rb") as saved_model:
+                model = pickle.load(saved_model)
+                self._model = model
+        predictions = np.array(self._model.predict(features))
+        return predictions.tolist()
     
     def save(self, path: Union[str, Path]):
         """Save the trained model to disk."""
@@ -124,6 +125,9 @@ class DelayModel:
         with open(path, "wb") as f:
             pickle.dump(self._model, f)
 
-    def load(self, model):
+    def load(self, model, reload: bool = True):
         """Load a model from disk."""
-        self._model = pickle.loads(model)
+        if reload:
+            self._model = pickle.loads(model)
+        else:
+            self._model = model
