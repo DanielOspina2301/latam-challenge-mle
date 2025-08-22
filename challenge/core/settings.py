@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     table_id: str = ""
     gcs_bucket: str = ""
 
+    DELAY_THRESHOLD: int = 15
+
 
     class Config:
         env_file = ".env"
